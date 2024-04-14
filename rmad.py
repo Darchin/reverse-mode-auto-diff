@@ -1,21 +1,16 @@
 import math
-from collections import defaultdict
+from collections import deque
 
 class Variable:
+    tail = deque()
     def __init__(self, value, local_gradients=[]):
         self.value = value
         self.local_gradients = local_gradients
+        self.grad = 0
+        Variable.tail.append(self)
     
     def __add__(self, other):
-        # if isinstance(self, Variable) and isinstance(other, Variable):
         return add(self, other)
-        # elif not isinstance(other, Variable):
-        #     return add(self, Variable(other))
-        # elif not isinstance(self, Variable): 
-        #     return add(Variable(self), other)
-        # else: 
-        #     return add(Variable(self), Variable(other))
-        
     def __sub__(self, other):
         return add(self, neg(other))
     def __neg__(self):
@@ -93,27 +88,19 @@ def log(var: Variable) -> tuple: # Base 'e'
     ]
     return Variable(value, local_gradients)
 
-def getGradients(func: Variable) -> dict:
-    gradients = defaultdict(lambda: 0)
+def getGradients(func: Variable):
     "Returns the gradient of the function with respect to its inputs."
-    def reversePass(var: Variable, dvar: float):
+    def reversePass(var: Variable):
         for child_var, local_grad in var.local_gradients:
-            child_partial = dvar * local_grad
-            gradients[child_var] += child_partial
-            reversePass(child_var, child_partial)
-    reversePass(func, 1)
-    return gradients
-    
-# def main():
-#     f = lambda a, b: (a / b - a) * (b / a + a + b) * (a - b)
-#     a = Variable(230.3)
-#     b = Variable(33.2)
-#     y = f(a, b)
-
-#     gradients = autoDiff.getGradients(y)
-
-#     print("The partial derivative of y with respect to a =", gradients[a])
-#     print("The partial derivative of y with respect to b =", gradients[b])
-
-# if __name__ == '__main__':
-#     main()
+            child_var.grad += var.grad * local_grad
+        if len(Variable.tail) != 0:
+            child_var = Variable.tail.pop()
+            reversePass(child_var)
+    # Depth first
+    # def reversePass(var: Variable, dvar: float):
+    #     for child_var, local_grad in var.local_gradients:
+    #         child_partial = dvar * local_grad
+    #         gradients[child_var] += child_partial
+    #         reversePass(child_var, child_partial)
+    func.grad = 1
+    reversePass(func)
